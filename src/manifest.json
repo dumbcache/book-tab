@@ -1,0 +1,54 @@
+{
+    "manifest_version": 3,
+    "name": "BookTab",
+    "version": "1.0.0",
+    "action": {
+        "default_icon": {},
+        "default_title": "Pocket Tab - save tabs to google drive"
+    },
+    "icons": {
+        "48": "assets/BookTab48.png",
+        "128": "assets/BookTab128.png"
+    },
+
+    "minimum_chrome_version": "93",
+    "side_panel": {
+        "default_path": "/tab/index.html"
+    },
+    "background": {
+        "service_worker": "/worker/worker.js",
+        "type": "module"
+    },
+    "content_security_policy": {
+        "content_security_policy": {
+            "extension_pages": "script-src 'self'; object-src 'self'; frame-src 'self'; img-src 'self' https://*;"
+        }
+    },
+    "commands": {
+        "_execute_action": {
+            "suggested_key": {
+                "default": "Alt+P",
+                "mac": "Command+P"
+            }
+        }
+    },
+    "key": "AAAAC3NzaC1lZDI1NTE5AAAAIMaQ+lz5CTmjSUeNHeMFY4JVI1YMfAfivRAbJ+KznsTc",
+    "web_accessible_resources": [
+        {
+            "resources": ["assets/*", "content/*", "chunks/*"],
+            "matches": ["https://*/*"]
+        }
+    ],
+    "permissions": [
+        "tabs",
+        "tabGroups",
+        "activeTab",
+        "contextMenus",
+        "identity",
+        "scripting",
+        "sidePanel",
+        "storage",
+        "unlimitedStorage"
+    ],
+    "host_permissions": ["http://*/*", "https://*/*"]
+}

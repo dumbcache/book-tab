@@ -1,0 +1,146 @@
+@import url("https://fonts.googleapis.com/css2?family=Comic+Neue:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap");
+:root {
+    --font-default: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    --font-comic: "Comic neue", sans-serif;
+    --size-system: 62.5%;
+    --font-size-default: 1.6rem;
+    --size-small: 1.4rem;
+    --size-smallest: 1rem;
+    --primary-icon-size: 2rem;
+
+    /* --bg-color: #101114;
+    --bg-color-one: #222;
+    --bg-color-two: #333;
+    --color: #ccc;
+    --color-one: #aaa;
+    --color-focus: #0af;
+    --color-green: #5f5; */
+
+    --color-black: #101114;
+    --color-black-one: #222;
+    --color-black-three: #333;
+    --color-white: #fff;
+    --color-white-one: #eee;
+    --color-white-two: #ddd;
+    --color-green: rgb(0, 166, 166);
+    --color-red: rgb(255, 0, 80);
+    --color-shadow: #0005;
+    --color-backdrop: #fff2;
+    --color-popup: var(--color-white-one);
+
+    --color: light-dark(var(--color-black), var(--color-white));
+    --color-bg: light-dark(var(--color-white), var(--color-black));
+    --color-focus: light-dark(var(--color-red), var(--color-green));
+}
+
+:root {
+    color-scheme: light dark;
+    /* background-color: var(--color-purple-background); */
+    /* background-color: #101114; */
+    background-color: Canvas;
+    color: var(--color);
+    color: CanvasText;
+    font-family: var(--font-comic);
+    font-size: var(--size-system);
+    line-height: var(--line-height-default);
+    height: 100%;
+
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+
+    box-sizing: border-box;
+    scroll-behavior: smooth;
+}
+
+::-webkit-scrollbar {
+    display: none;
+}
+
+*,
+*::before,
+*::after {
+    margin: 0rem;
+    padding: 0rem;
+    box-sizing: inherit;
+    scroll-behavior: inherit;
+    font-family: inherit;
+}
+
+body {
+    font-family: var(--font-comic);
+    font-size: var(--font-size-default);
+}
+
+body,
+.app {
+    height: 100%;
+    width: 100%;
+    position: relative;
+}
+
+input,
+button {
+    color: inherit;
+    display: inline-block;
+    background: none;
+    border: none;
+    outline: none;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+    display: inline-block;
+}
+
+li {
+    list-style: none;
+}
+
+button {
+    cursor: pointer;
+}
+
+svg {
+    width: 100%;
+    fill: var(--color);
+}
+
+.btn:hover svg {
+    fill: var(--color-focus);
+}
+.btn:hover {
+    transform: scale(1.1);
+}
+
+.s-prime {
+    width: 2rem;
+    height: 2rem;
+}
+
+.s-second {
+    width: 1.6rem;
+    height: 1.6rem;
+}
+
+img {
+    width: 100%;
+}
+
+.ellipsis {
+    word-wrap: unset;
+    white-space: nowrap;
+    overflow-x: hidden;
+    text-overflow: ellipsis;
+    /* max-height: 1.6rem; */
+    @supports (-webkit-line-clamp: 2) {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 1;
+        overflow: hidden;
+        white-space: wrap;
+    }
+}

@@ -1,0 +1,5 @@
+{
+    "watch": ["src"],
+    "ext": "js,html,css,svelte,json,svg",
+    "exec": "pnpm run build"
+}
