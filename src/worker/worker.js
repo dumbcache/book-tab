@@ -14,6 +14,7 @@ import {
     rename,
     lock,
     display,
+    setSidePanelBehavior,
 } from "./utils.js";
 import { login, logout } from "./connection.js";
 
@@ -22,7 +23,6 @@ try {
     chrome.runtime.onStartup.addListener(startupHandler);
     chrome.runtime.onSuspend.addListener(() => {});
     chrome.runtime.setUninstallURL("https://www.pocketdrive.in");
-    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
     // chrome.storage.onChanged.addListener(async (changes) => {
     //     try {
@@ -86,6 +86,11 @@ try {
                     return;
                 case "sendRight":
                     sendRight(tab);
+                    return;
+                case "hidden":
+                    chrome.storage.local.set({ hidden: info.checked });
+                    setSidePanelBehavior(!info.checked);
+
                     return;
                 case "clearHistory":
                     chrome.storage.local.set({

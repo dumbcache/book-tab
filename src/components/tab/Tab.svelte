@@ -45,20 +45,20 @@
         }}
         ondragover={(e) => {
             e.preventDefault();
-            e.dataTransfer.dropEffect = "move";
             e.currentTarget.style.borderColor = "var(--color-focus)";
+            e.dataTransfer.dropEffect = "move";
         }}
         ondragleave={(e) => {
             e.currentTarget.style.borderColor = "var(--color-bg)";
         }}
         ondrop={(e) => {
+            e.currentTarget.style.borderColor = "var(--color-bg)";
             const { sourceId, sourceParentId } = JSON.parse(
                 e.dataTransfer.getData("application/json")
             );
             const target = e.currentTarget;
             const source = document.getElementById(sourceId);
             target.parentNode.insertBefore(source, target);
-            e.currentTarget.style.borderColor = "var(--color-bg)";
             arrange(sourceId, sourceParentId, tab.id, group.id);
         }}
     >
@@ -131,7 +131,7 @@
         transform-origin: center left;
     }
     img:hover {
-        transform: scale(7);
+        transform: scale(10);
         transition-delay: 0.5s;
     }
 

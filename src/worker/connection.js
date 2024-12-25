@@ -20,11 +20,11 @@ export const login = async () => {
             const url = new URL(redirectURL);
             const token = url.hash.split("&")[0].split("=")[1];
             const { email } = await getUserInfo(token);
-            await chrome.storage.local.set({ user: email, token });
-            checks(token);
+            let session = Date.now() + 3599 * 1000;
+            await chrome.storage.local.set({ user: email, token, session });
+            // checks(token);
             console.log("session logged in");
 
-            // if (!active) {
             chrome.runtime.sendMessage(
                 {
                     context: "CHANGE",
@@ -37,7 +37,7 @@ export const login = async () => {
 };
 
 export const logout = async () => {
-    await chrome.storage.local.set({ user: "", lastSynced: null, root: "" });
+    await chrome.storage.local.set({ user: "", lastSynced: null });
     chrome.runtime.sendMessage(
         {
             context: "CHANGE",

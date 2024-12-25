@@ -143,8 +143,24 @@ export function initContextMenus() {
         {
             id: "seperator3",
             type: "separator",
-            contexts: ["action"],
+            contexts: ["all"],
             parentId: "booktab",
+        },
+        checkRuntimeError
+    );
+    chrome.contextMenus.create({
+        id: "options",
+        title: "Options",
+        parentId: "booktab",
+        contexts: ["all"],
+    });
+    chrome.contextMenus.create(
+        {
+            id: "hidden",
+            title: "Hidden",
+            contexts: ["all"],
+            type: "checkbox",
+            parentId: "options",
         },
         checkRuntimeError
     );
@@ -152,27 +168,43 @@ export function initContextMenus() {
         {
             id: "clearHistory",
             title: "Clear history of BookTab",
-            contexts: ["action"],
-            parentId: "booktab",
+            contexts: ["all"],
+            parentId: "options",
         },
         checkRuntimeError
     );
 }
 
 export async function setStorage() {
-    let { user, groups, history, lastSynced, theme, root, token } =
-        await chrome.storage.local.get();
-    theme ?? (theme = "");
-    groups ?? (groups = []);
-    history ?? (history = { groups: [], tabs: [] });
-    chrome.storage.local.set({
+    let {
+        groups = [],
+        history = { groups: [], tabs: [] },
+        theme = "",
+        hidden = false,
         user,
+        token,
+        session,
+        lastSynced,
+    } = await chrome.storage.local.get();
+    chrome.storage.local.set({
         groups,
         history,
-        lastSynced,
         theme,
-        root,
+        hidden,
+        user,
         token,
+        session,
+        lastSynced,
+    });
+}
+
+/**
+ * @param {boolean} b
+ */
+export function setSidePanelBehavior(b) {
+    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: b });
+    chrome.sidePanel.setOptions({
+        enabled: b,
     });
 }
 
@@ -186,10 +218,13 @@ export function installHandler() {
     });
     setStorage();
     checks();
+    setSidePanelBehavior(true);
     console.log("installed");
 }
 
-export function startupHandler() {}
+export function startupHandler() {
+    console.log("started");
+}
 
 export async function getUserInfo(token) {
     const req = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
@@ -230,21 +265,9 @@ function getRandomColor() {
     return colors[randomIndex];
 }
 
-/**
- *
- * @returns {TabGroup}
- */
-function createTabGroup() {
-    return {
-        id: generateId(),
-        name: new Date().toString(),
-        createdDate: Date.now(),
-        locked: false,
-        tabs: [],
-    };
-}
-
-export function display() {
+export async function display() {
+    const { hidden } = await chrome.storage.local.get("hidden");
+    if (hidden) return;
     chrome.tabs.query({ title: "BookTab" }).then((t) => {
         if (t.length === 0) {
             chrome.tabs.create({
@@ -257,6 +280,19 @@ export function display() {
             chrome.tabs.update(t[0].id, { active: true });
         }
     });
+}
+/**
+ *
+ * @returns {TabGroup}
+ */
+function createTabGroup() {
+    return {
+        id: generateId(),
+        name: new Date().toString(),
+        createdDate: Date.now(),
+        locked: false,
+        tabs: [],
+    };
 }
 
 /**
