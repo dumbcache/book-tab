@@ -1,4 +1,4 @@
-import { checks } from "./drive";
+import { checks, sync } from "./drive";
 
 const HOSTNAME = new URL(chrome.runtime.getURL("")).hostname;
 export const REDIRECT_URI = `https://${HOSTNAME}.chromiumapp.org/redirect`;
@@ -30,8 +30,13 @@ export function isSystemTab(link) {
     );
 }
 
-export function isLoggedIn() {
-    return chrome.storage.local.get("token");
+export async function isLoggedIn() {
+    return await chrome.storage.local.get("token");
+}
+
+export async function isSessionExpired() {
+    const { session } = await chrome.storage.local.get("session");
+    return session - Date.now() < 0;
 }
 
 export function initContextMenus() {
@@ -208,7 +213,7 @@ export function setSidePanelBehavior(b) {
     });
 }
 
-export function installHandler() {
+export async function installHandler() {
     initContextMenus();
     chrome.tabs.create({
         url: "/tab/index.html",
@@ -217,8 +222,8 @@ export function installHandler() {
         active: false,
     });
     setStorage();
-    checks();
     setSidePanelBehavior(true);
+    if (!(await isSessionExpired())) sync();
     console.log("installed");
 }
 
@@ -286,10 +291,12 @@ export async function display() {
  * @returns {TabGroup}
  */
 function createTabGroup() {
+    let d = Date.now();
     return {
         id: generateId(),
-        name: new Date().toString(),
-        createdDate: Date.now(),
+        name: new Date(d).toString(),
+        createdDate: d,
+        modifiedDate: d,
         locked: false,
         tabs: [],
     };
@@ -309,6 +316,7 @@ function createTabGroup() {
  * @property {string} id
  * @property {string} name
  * @property {number} createdDate
+ * @property {number} modifiedDate
  * @property {boolean} locked
  * @property {Array<Tab>} tabs
  */
@@ -329,8 +337,15 @@ export async function add(tab, image) {
     };
     let { groups } = await chrome.storage.local.get();
     groups ?? (groups = []);
-    if (groups.length === 0) groups.push(createTabGroup());
+    if (
+        groups.length === 0 ||
+        Date.now() - groups[0].createdDate > 1000 * 60 * 60 * 5
+    ) {
+        groups.unshift(createTabGroup());
+    }
     const g = groups[0];
+
+    g.modifiedDate = Date.now();
     g.tabs.unshift(t);
     await chrome.storage.local.set({ groups });
     chrome.runtime.sendMessage({
@@ -377,6 +392,7 @@ async function removeTab(group, tab) {
     const gs = groups.find((g) => g.id === group);
     const found = gs.tabs.findIndex((t) => t.id === tab);
     const ts = gs.tabs.splice(found, 1);
+    gs.modifiedDate = Date.now();
     history.tabs.unshift(ts[0]);
     chrome.storage.local.set({ groups, history });
 }
@@ -402,10 +418,12 @@ export async function arrange({ source, sourceParent, target, targetParent }) {
         if (!sp) return;
         let sIndex = sp.tabs.findIndex((t) => t?.id === source);
         let s = sp.tabs.splice(sIndex, 1);
+        sp.modifiedDate = Date.now();
         const tp = groups.find((g) => g?.id === targetParent);
         if (!tp) return;
         let tIndex = tp.tabs.findIndex((t) => t?.id === target);
         tp.tabs.splice(tIndex, 0, s[0]);
+        tp.modifiedDate = Date.now();
         await chrome.storage.local.set({ groups });
     } catch (error) {
         console.info(error);
@@ -420,6 +438,7 @@ export async function rename(group, name) {
     const sp = groups.find((g) => g.id === group);
     if (!sp) return;
     sp.name = name;
+    sp.modifiedDate = Date.now();
     await chrome.storage.local.set({ groups });
 }
 /**
@@ -431,6 +450,7 @@ export async function lock(group, locked) {
     const sp = groups.find((g) => g.id === group);
     if (!sp) return;
     sp.locked = locked;
+    sp.modifiedDate = Date.now();
     await chrome.storage.local.set({ groups });
 }
 

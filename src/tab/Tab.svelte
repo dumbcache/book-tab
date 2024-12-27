@@ -25,8 +25,13 @@
     async function set() {
         let { groups, lastSynced, user } = await chrome.storage.local.get();
         tabGroups = groups ?? [];
-        lastSynced && (lastSync = new Date(lastSynced).toLocaleString());
         user ? (isLoggedIn = true) : (isLoggedIn = false);
+        if (lastSynced) {
+            lastSync =
+                new Date(lastSynced).toDateString() +
+                " " +
+                new Date(lastSynced).toLocaleTimeString();
+        }
     }
 
     chrome.runtime.onMessage.addListener(
@@ -51,8 +56,8 @@
         >
 
         <h1>BookTab</h1>
-        {#if isLoggedIn}
-            <p>{`last synced: ${lastSync}`}</p>
+        {#if isLoggedIn && lastSync}
+            <p>{`Last synced: ${lastSync}`}</p>
         {/if}
     </div>
     <div class="two">
@@ -114,7 +119,7 @@
             position: absolute;
             top: 3.5rem;
             left: 0;
-            width: fit-content;
+            min-width: max-content;
         }
     }
 

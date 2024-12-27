@@ -1,9 +1,13 @@
-import { checks, fetchRootDir } from "./drive.js";
+import { checks } from "./drive.js";
 import { checkRuntimeError, getUserInfo, OAUTH } from "./utils.js";
 
 export const login = async () => {
+    const { user } = await chrome.storage.local.get("user");
+    let url = OAUTH;
+    if (user) url = OAUTH + `&login_hint=${user}`;
+
     chrome.identity.launchWebAuthFlow(
-        { url: OAUTH, interactive: true },
+        { url: url, interactive: true },
         async (redirectURL) => {
             chrome.runtime.lastError && "";
             if (!redirectURL) {
@@ -20,24 +24,21 @@ export const login = async () => {
             const url = new URL(redirectURL);
             const token = url.hash.split("&")[0].split("=")[1];
             const { email } = await getUserInfo(token);
-            let session = Date.now() + 3599 * 1000;
-            await chrome.storage.local.set({ user: email, token, session });
-            // checks(token);
+            checks(token, email);
             console.log("session logged in");
 
-            chrome.runtime.sendMessage(
-                {
-                    context: "CHANGE",
-                },
-                checkRuntimeError
-            );
             // }
         }
     );
 };
 
 export const logout = async () => {
-    await chrome.storage.local.set({ user: "", lastSynced: null });
+    await chrome.storage.local.set({
+        user: "",
+        token: "",
+        lastSynced: null,
+        session: null,
+    });
     chrome.runtime.sendMessage(
         {
             context: "CHANGE",

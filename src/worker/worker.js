@@ -15,8 +15,13 @@ import {
     lock,
     display,
     setSidePanelBehavior,
+    isSessionExpired,
 } from "./utils.js";
 import { login, logout } from "./connection.js";
+import { checks, sync } from "./drive.js";
+
+let syncTimeOut;
+let syncDelay = 1000 * 1;
 
 try {
     chrome.runtime.onInstalled.addListener(installHandler);
@@ -24,16 +29,21 @@ try {
     chrome.runtime.onSuspend.addListener(() => {});
     chrome.runtime.setUninstallURL("https://www.pocketdrive.in");
 
-    // chrome.storage.onChanged.addListener(async (changes) => {
-    //     try {
-    //         if (changes.active) {
-    //             initContextMenus();
-    //         }
-    //         console.log(changes);
-    //     } catch (error) {
-    //         console.warn("Storage onChange error", error);
-    //     }
-    // });
+    chrome.storage.onChanged.addListener(async (changes) => {
+        try {
+            if (changes.groups || changes.history) {
+                clearTimeout(syncTimeOut);
+                if (!(await isSessionExpired())) {
+                    console.log("Sync is in queue");
+                    syncTimeOut = setTimeout(() => {
+                        sync();
+                    }, syncDelay);
+                }
+            }
+        } catch (error) {
+            console.warn("Storage onChange error", error);
+        }
+    });
 
     chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         try {

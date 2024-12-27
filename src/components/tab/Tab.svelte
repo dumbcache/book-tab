@@ -93,7 +93,7 @@
         display: flex;
         gap: 1rem;
         align-items: center;
-        padding: 0.5rem;
+        padding: 0.5rem 0rem;
         border-top: 1px solid var(--color-bg);
         /* margin-left: 1.5rem; */
     }
@@ -129,6 +129,7 @@
         transition: transform 0.5s ease;
         transition-delay: 0s;
         transform-origin: center left;
+        flex-shrink: 0;
     }
     img:hover {
         transform: scale(10);
