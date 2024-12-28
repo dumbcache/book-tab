@@ -8,6 +8,13 @@
         s.groups = history.groups;
         s.tabs = history.tabs;
     }
+
+    chrome.runtime.onMessage.addListener(async (message) => {
+        let { context } = message;
+        if (context === "CHANGE") {
+            set();
+        }
+    });
     onMount(() => {
         set();
     });
@@ -42,9 +49,12 @@
             <button
                 class="clear"
                 onclick={() => {
-                    chrome.runtime
-                        .sendMessage({ context: "CLEARHISTORY" })
-                        .then(set);
+                    const s = window.confirm("Confirm clear history?");
+                    if (s)
+                        chrome.runtime.sendMessage({
+                            context: "CONTEXTMENU",
+                            action: "clearHistory",
+                        });
                 }}>[Clear history]</button
             >
         </div>
@@ -86,7 +96,9 @@
     .head {
         padding: 1rem;
     }
-
+    .one li {
+        margin-left: 1rem;
+    }
     .two {
         display: flex;
         flex-direction: column;
@@ -178,7 +190,7 @@
     }
     h3 {
         padding: 1rem;
-        margin-bottom: 2rem;
+        margin-bottom: 1rem;
     }
     .nav {
         display: none;
@@ -201,7 +213,7 @@
             display: flex;
             justify-content: space-between;
             position: sticky;
-            top: 7rem;
+            top: 10rem;
             background-color: var(--color-bg);
         }
     }
