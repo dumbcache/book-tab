@@ -140,15 +140,6 @@
         visibility: hidden;
         flex-shrink: 0;
     }
-    .icon {
-        width: 2rem;
-        height: 2rem;
-    }
-
-    .icon:hover :global(svg),
-    .icon:focus :global(svg) {
-        fill: var(--color-focus);
-    }
     .hide,
     .tab:hover .hide {
         visibility: hidden;

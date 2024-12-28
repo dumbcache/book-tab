@@ -1,4 +1,4 @@
-import { checkRuntimeError } from "./utils";
+import { changeNofify } from "./utils";
 
 const FILE_API = "https://www.googleapis.com/drive/v3/files";
 const FILE_API_UPLOAD = "https://www.googleapis.com/upload/drive/v3/files";
@@ -6,31 +6,26 @@ export const PAGE_SIZE = 500;
 
 /**
  *
- * @param {string} [t]
- * @param {string} [u]
+ * @param {string} [token]
+ * @param {string} [user]
  */
 export async function checks(token, user) {
     console.info("performing sync checks");
     let { user: u, lastSynced } = await chrome.storage.local.get();
     if (
-        user &&
-        user === u &&
-        lastSynced &&
-        Date.now() - lastSynced < 1000 * 60 * 60 * 24
+        !user ||
+        user !== u ||
+        !lastSynced ||
+        Date.now() - lastSynced > 1000 * 60 * 60 * 2
     ) {
-        fullSync(token);
-    } else {
+        //     if (Date.now() - lastSynced < 1000 * 60 * 60 * 24) fullSync(token);
+        // } else {
         partialSync(token);
     }
     let session = Date.now() + 3600 * 1000;
     await chrome.storage.local.set({ token, user, session });
 
-    chrome.runtime.sendMessage(
-        {
-            context: "CHANGE",
-        },
-        checkRuntimeError
-    );
+    changeNofify();
     return;
 }
 
@@ -210,7 +205,7 @@ async function fullSync(token) {
             }
         });
         await chrome.storage.local.set({ lastSynced });
-        chrome.runtime.sendMessage({ context: "CHANGE" });
+        changeNofify();
         console.info("Sync completed");
     }
 }
@@ -266,7 +261,7 @@ async function partialSync(token) {
             }
         });
         await chrome.storage.local.set({ lastSynced, groups: bjson.groups });
-        chrome.runtime.sendMessage({ context: "CHANGE" });
+        changeNofify();
         console.info("Sync completed");
     }
 }
