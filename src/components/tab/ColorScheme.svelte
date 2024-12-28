@@ -32,7 +32,7 @@
 
 <button
     type="button"
-    class="color-theme btn s-prime"
+    class="color-theme icon"
     title="toggle theme"
     role="switch"
     aria-label="Toggle dark mode"
@@ -49,17 +49,6 @@
 <style>
     .color-theme {
         border-radius: 50%;
-        filter: none;
-        block-size: var(--primary-icon-size);
-        inline-size: var(--primary-icon-size);
-    }
-    .color-theme:hover,
-    .color-theme:active {
-        padding: 0.2rem;
-    }
-
-    .color-theme:hover :global(svg) {
-        fill: var(--color-focus);
     }
 
     @media (max-width: 600px) {

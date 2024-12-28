@@ -1,8 +1,11 @@
-import { checks, sync } from "./drive";
+import { sync, checks } from "./drive";
 
 const HOSTNAME = new URL(chrome.runtime.getURL("")).hostname;
 export const REDIRECT_URI = `https://${HOSTNAME}.chromiumapp.org/redirect`;
 export const OAUTH = `https://accounts.google.com/o/oauth2/v2/auth?client_id=443434516112-9gipi57e3v67qnp1buluec7ehrj3qdtu.apps.googleusercontent.com&prompt=select_account&response_type=token&scope=email https://www.googleapis.com/auth/drive.appdata&redirect_uri=${REDIRECT_URI}`;
+/**
+ * @type { chrome.tabGroups.ColorEnum[]}
+ */
 export const colors = [
     "grey",
     "blue",
@@ -14,9 +17,21 @@ export const colors = [
     "cyan",
     "orange",
 ];
+let pendingSync;
+let syncTimeOut = null;
+let syncDelay = 1000 * 60 * 1;
 
 export function checkRuntimeError() {
     chrome.runtime.lastError;
+}
+
+export function changeNofify() {
+    chrome.runtime.sendMessage(
+        {
+            context: "CHANGE",
+        },
+        checkRuntimeError
+    );
 }
 
 /**
@@ -30,8 +45,9 @@ export function isSystemTab(link) {
     );
 }
 
-export async function isLoggedIn() {
-    return await chrome.storage.local.get("token");
+export async function getToken() {
+    const { token } = await chrome.storage.local.get();
+    return token;
 }
 
 export async function isSessionExpired() {
@@ -39,197 +55,48 @@ export async function isSessionExpired() {
     return session - Date.now() < 0;
 }
 
-export function initContextMenus() {
-    chrome.contextMenus.create({
-        id: "booktab",
-        title: "BookTab",
-        contexts: ["all"],
-    });
-    chrome.contextMenus.create(
-        {
-            id: "display",
-            title: "Display BookTab",
-            contexts: ["all"],
-            parentId: "booktab",
-        },
-        checkRuntimeError
-    );
-    chrome.contextMenus.create(
-        {
-            id: "create",
-            title: "Create a copy of this tab",
-            contexts: ["image", "link", "page"],
-            parentId: "booktab",
-        },
-        checkRuntimeError
-    );
-    chrome.contextMenus.create(
-        {
-            id: "seperator1",
-            type: "separator",
-            contexts: ["all"],
-            parentId: "booktab",
-        },
-        checkRuntimeError
-    );
-    chrome.contextMenus.create(
-        {
-            id: "sendOne",
-            title: "Send only this tab to BookTab",
-            contexts: ["all"],
-            parentId: "booktab",
-        },
-        checkRuntimeError
-    );
-    chrome.contextMenus.create(
-        {
-            id: "sendLink",
-            title: "Send this link to BookTab",
-            contexts: ["link"],
-            parentId: "booktab",
-        },
-        checkRuntimeError
-    );
-    chrome.contextMenus.create(
-        {
-            id: "seperator2",
-            type: "separator",
-            contexts: ["all"],
-            parentId: "booktab",
-        },
-        checkRuntimeError
-    );
-    chrome.contextMenus.create(
-        {
-            id: "sendAll",
-            title: "Send all tabs to BookTab",
-            contexts: ["all"],
-            parentId: "booktab",
-        },
-        checkRuntimeError
-    );
-    chrome.contextMenus.create(
-        {
-            id: "sendExcept",
-            title: "Send all tabs except this tab to BookTab",
-            contexts: ["all"],
-            parentId: "booktab",
-        },
-        checkRuntimeError
-    );
-    chrome.contextMenus.create(
-        {
-            id: "sendRight",
-            title: "Send all tabs on right to BookTab",
-            contexts: ["all"],
-            parentId: "booktab",
-        },
-        checkRuntimeError
-    );
-    chrome.contextMenus.create(
-        {
-            id: "sendLeft",
-            title: "Send all tabs on left to BookTab",
-            contexts: ["all"],
-            parentId: "booktab",
-        },
-        checkRuntimeError
-    );
-    chrome.contextMenus.create(
-        {
-            id: "sendLeft",
-            title: "Send all tabs on left to BookTab",
-            contexts: ["all"],
-            parentId: "booktab",
-        },
-        checkRuntimeError
-    );
-    chrome.contextMenus.create(
-        {
-            id: "seperator3",
-            type: "separator",
-            contexts: ["all"],
-            parentId: "booktab",
-        },
-        checkRuntimeError
-    );
-    chrome.contextMenus.create({
-        id: "options",
-        title: "Options",
-        parentId: "booktab",
-        contexts: ["all"],
-    });
-    chrome.contextMenus.create(
-        {
-            id: "hidden",
-            title: "Hidden",
-            contexts: ["all"],
-            type: "checkbox",
-            parentId: "options",
-        },
-        checkRuntimeError
-    );
-    chrome.contextMenus.create(
-        {
-            id: "clearHistory",
-            title: "Clear history of BookTab",
-            contexts: ["all"],
-            parentId: "options",
-        },
-        checkRuntimeError
-    );
-}
+export const login = async () => {
+    const { user } = await chrome.storage.local.get("user");
+    let url = OAUTH;
+    if (user) url = OAUTH + `&login_hint=${user}`;
 
-export async function setStorage() {
-    let {
-        groups = [],
-        history = { groups: [], tabs: [] },
-        theme = "",
-        hidden = false,
-        user,
-        token,
-        session,
-        lastSynced,
-    } = await chrome.storage.local.get();
-    chrome.storage.local.set({
-        groups,
-        history,
-        theme,
-        hidden,
-        user,
-        token,
-        session,
-        lastSynced,
-    });
-}
+    chrome.identity.launchWebAuthFlow(
+        { url: url, interactive: true },
+        async (redirectURL) => {
+            chrome.runtime.lastError && "";
+            if (!redirectURL) {
+                chrome.runtime.sendMessage(
+                    {
+                        context: "LOGIN",
+                        status: 500,
+                    },
+                    checkRuntimeError
+                );
+                console.log("redirect failed");
+                return;
+            }
+            const url = new URL(redirectURL);
+            const token = url.hash.split("&")[0].split("=")[1];
+            const { email } = await getUserInfo(token);
+            checks(token, email);
+            console.log("session logged in");
 
-/**
- * @param {boolean} b
- */
-export function setSidePanelBehavior(b) {
-    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: b });
-    chrome.sidePanel.setOptions({
-        enabled: b,
-    });
-}
+            // }
+        }
+    );
+};
 
-export async function installHandler() {
-    initContextMenus();
-    chrome.tabs.create({
-        url: "/tab/index.html",
-        index: 0,
-        pinned: true,
-        active: false,
+export const logout = async () => {
+    clearTimeout(pendingSync);
+    await chrome.storage.local.set({
+        user: "",
+        token: "",
+        lastSynced: null,
+        session: null,
     });
-    setStorage();
-    setSidePanelBehavior(true);
-    if (!(await isSessionExpired())) sync();
-    console.log("installed");
-}
-
-export function startupHandler() {
-    console.log("started");
-}
+    changeNofify();
+    console.log("session logged out");
+};
 
 export async function getUserInfo(token) {
     const req = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
@@ -239,11 +106,6 @@ export async function getUserInfo(token) {
         },
     });
     return await req.json();
-}
-
-export async function getToken() {
-    const { token } = await chrome.storage.local.get();
-    return token;
 }
 
 /**
@@ -348,9 +210,7 @@ export async function add(tab, image) {
     g.modifiedDate = Date.now();
     g.tabs.unshift(t);
     await chrome.storage.local.set({ groups });
-    chrome.runtime.sendMessage({
-        context: "CHANGE",
-    });
+    changeNofify();
 }
 
 /**
@@ -372,14 +232,16 @@ export async function addMutliple(tabs) {
             url: tab.url,
         };
         g.tabs.push(t);
-        close(tab);
     }
     let { groups } = await chrome.storage.local.get();
     groups.unshift(g);
     await chrome.storage.local.set({ groups });
-    chrome.runtime.sendMessage({
-        context: "CHANGE",
-    });
+    changeNofify();
+    for (const tab of tabs) {
+        if (isSystemTab(tab.url)) continue;
+        // if (s.has(tab.url)) continue;
+        close(tab);
+    }
 }
 
 /**
@@ -557,4 +419,355 @@ export function sendRight(tab) {
         });
         addMutliple(ts);
     });
+}
+
+export function clearHistory() {
+    chrome.storage.local
+        .set({
+            history: { groups: [], tabs: [] },
+        })
+        .then(changeNofify);
+}
+/*********************************************************************
+ *********************************************************************
+ **********************  HANDLERS ************************************
+ *********************************************************************
+ *********************************************************************/
+export function initContextMenus() {
+    chrome.contextMenus.create({
+        id: "booktab",
+        title: "BookTab",
+        contexts: ["all"],
+    });
+    chrome.contextMenus.create(
+        {
+            id: "display",
+            title: "Display BookTab",
+            contexts: ["all"],
+            parentId: "booktab",
+        },
+        checkRuntimeError
+    );
+    chrome.contextMenus.create(
+        {
+            id: "create",
+            title: "Create a copy of this tab",
+            contexts: ["image", "link", "page"],
+            parentId: "booktab",
+        },
+        checkRuntimeError
+    );
+    chrome.contextMenus.create(
+        {
+            id: "seperator1",
+            type: "separator",
+            contexts: ["all"],
+            parentId: "booktab",
+        },
+        checkRuntimeError
+    );
+    chrome.contextMenus.create(
+        {
+            id: "sendOne",
+            title: "Send only this tab to BookTab",
+            contexts: ["all"],
+            parentId: "booktab",
+        },
+        checkRuntimeError
+    );
+    chrome.contextMenus.create(
+        {
+            id: "sendLink",
+            title: "Send this link to BookTab",
+            contexts: ["link"],
+            parentId: "booktab",
+        },
+        checkRuntimeError
+    );
+    chrome.contextMenus.create(
+        {
+            id: "seperator2",
+            type: "separator",
+            contexts: ["all"],
+            parentId: "booktab",
+        },
+        checkRuntimeError
+    );
+    chrome.contextMenus.create(
+        {
+            id: "sendAll",
+            title: "Send all tabs to BookTab",
+            contexts: ["all"],
+            parentId: "booktab",
+        },
+        checkRuntimeError
+    );
+    chrome.contextMenus.create(
+        {
+            id: "sendExcept",
+            title: "Send all tabs except this tab to BookTab",
+            contexts: ["all"],
+            parentId: "booktab",
+        },
+        checkRuntimeError
+    );
+    chrome.contextMenus.create(
+        {
+            id: "sendLeft",
+            title: "Send all tabs on left to BookTab",
+            contexts: ["all"],
+            parentId: "booktab",
+        },
+        checkRuntimeError
+    );
+    chrome.contextMenus.create(
+        {
+            id: "sendRight",
+            title: "Send all tabs on right to BookTab",
+            contexts: ["all"],
+            parentId: "booktab",
+        },
+        checkRuntimeError
+    );
+
+    chrome.contextMenus.create(
+        {
+            id: "seperator3",
+            type: "separator",
+            contexts: ["all"],
+            parentId: "booktab",
+        },
+        checkRuntimeError
+    );
+    chrome.contextMenus.create({
+        id: "options",
+        title: "Options",
+        parentId: "booktab",
+        contexts: ["all"],
+    });
+    chrome.contextMenus.create(
+        {
+            id: "hidden",
+            title: "Hidden",
+            contexts: ["all"],
+            type: "checkbox",
+            parentId: "options",
+        },
+        checkRuntimeError
+    );
+    chrome.contextMenus.create(
+        {
+            id: "clearHistory",
+            title: "Clear history of BookTab",
+            contexts: ["all"],
+            parentId: "options",
+        },
+        checkRuntimeError
+    );
+}
+
+export async function setStorage() {
+    let {
+        groups = [],
+        history = { groups: [], tabs: [] },
+        theme = "",
+        hidden = false,
+        user,
+        token,
+        session,
+        lastSynced,
+    } = await chrome.storage.local.get();
+    chrome.storage.local.set({
+        groups,
+        history,
+        theme,
+        hidden,
+        user,
+        token,
+        session,
+        lastSynced,
+    });
+}
+
+/**
+ * @param {boolean} b
+ */
+export function setSidePanelBehavior(b) {
+    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: b });
+    chrome.sidePanel.setOptions({
+        enabled: b,
+    });
+}
+
+export async function installHandler() {
+    initContextMenus();
+    setStorage();
+    setSidePanelBehavior(true);
+    console.log("installed");
+}
+
+export function startupHandler() {
+    console.log("started");
+}
+
+export async function storageHandler(changes) {
+    try {
+        if (changes.groups || changes.history) {
+            if (Date.now() - syncTimeOut > syncDelay) {
+                syncTimeOut = Date.now();
+                if (!(await isSessionExpired())) {
+                    console.log("Sync is in queue");
+                    pendingSync = setTimeout(() => {
+                        sync();
+                    }, syncDelay);
+                }
+            }
+        }
+    } catch (error) {
+        console.warn("Storage onChange error", error);
+    }
+}
+
+/**
+ *
+ * @param { chrome.contextMenus.OnClickData} info
+ * @param { chrome.tabs.Tab} tab
+ */
+export function contextMenuHandler(info, tab) {
+    performContextAction(info.menuItemId, tab, info);
+}
+/**
+ * @param {string | number} action
+ * @param { chrome.tabs.Tab} tab
+ * @param { chrome.contextMenus.OnClickData} [info]
+ */
+export function performContextAction(action, tab, info) {
+    try {
+        switch (action) {
+            case "create":
+                // chrome.sidePanel.open({ windowId: tab.windowId });
+                sendOne(tab, info?.srcUrl, false);
+                return;
+            case "display":
+                display();
+                return;
+
+            case "sendOne":
+                sendOne(tab, info?.srcUrl, true);
+                return;
+            case "sendLink":
+                chrome.tabs
+                    .create({
+                        url: info.linkUrl,
+                        active: false,
+                        pinned: true,
+                    })
+                    .then((p) => {
+                        chrome.tabs.onUpdated.addListener(function onTabUpdated(
+                            tid,
+                            changeInfo,
+                            t
+                        ) {
+                            if (
+                                p.id === tid &&
+                                changeInfo.status === "complete"
+                            ) {
+                                chrome.tabs.get(tid, (tt) => {
+                                    sendOne(tt, "", true);
+                                });
+                                chrome.tabs.onUpdated.removeListener(
+                                    onTabUpdated
+                                );
+                            }
+                        });
+                    });
+
+                return;
+            case "sendAll":
+                sendAll();
+                return;
+            case "sendExcept":
+                sendExcept(tab);
+                return;
+            case "sendLeft":
+                sendLeft(tab);
+                return;
+            case "sendRight":
+                sendRight(tab);
+                return;
+            case "hidden":
+                chrome.storage.local.set({ hidden: info.checked });
+                setSidePanelBehavior(!info.checked);
+
+                return;
+            case "clearHistory":
+                clearHistory();
+                return;
+        }
+    } catch (error) {
+        console.warn("ContextMenu error:", error);
+    }
+}
+
+/**
+ *
+ * @param {any} message
+ * @param {chrome.runtime.MessageSender} sender
+ * @param {(response?: any) => void} sendResponse
+ */
+export function messageHandler(message, sender, sendResponse) {
+    performMessageAction(message, sendResponse);
+}
+/**
+ *
+ * @param {any} message
+ * @param {(response?: any) => void} sendResponse
+ */
+function performMessageAction(message, sendResponse) {
+    try {
+        // if (sender.tab &&isSystemTab(sender.tab.url)) return;
+        if (message.context === "LOGIN") {
+            login();
+            return;
+        }
+        if (message.context === "LOGOUT") {
+            logout();
+            return;
+        }
+        if (message.context === "OPEN") {
+            const { group } = message.data;
+            open(group);
+            return;
+        }
+        if (message.context === "REMOVE") {
+            const { group, tab } = message.data;
+            remove(group, tab).then(changeNofify);
+            return;
+        }
+        if (message.context === "ARRANGE") {
+            arrange(message.data);
+            return;
+        }
+        if (message.context === "RENAME") {
+            const { group, name } = message.data;
+            rename(group, name);
+            return;
+        }
+        if (message.context === "LOCK") {
+            const { group, locked } = message.data;
+            lock(group, locked);
+            return;
+        }
+        if (message.context === "CONTEXTMENU") {
+            chrome.tabs
+                .query({ active: true, lastFocusedWindow: true })
+                .then((ts) => {
+                    sendOne(ts[0], "", false);
+                    performContextAction(message.action, ts[0]);
+                });
+            return;
+        }
+    } catch (error) {
+        console.warn("OnMessage error:", error);
+    }
 }

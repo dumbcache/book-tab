@@ -106,14 +106,8 @@ button {
 
 svg {
     width: 100%;
+    height: 100%;
     fill: var(--color);
-}
-
-.btn:hover svg {
-    fill: var(--color-focus);
-}
-.btn:hover {
-    transform: scale(1.1);
 }
 
 .s-prime {
@@ -143,4 +137,13 @@ img {
         overflow: hidden;
         white-space: wrap;
     }
+}
+
+.icon {
+    inline-size: var(--primary-icon-size);
+    block-size: var(--primary-icon-size);
+}
+
+button:hover svg {
+    fill: var(--color-focus);
 }

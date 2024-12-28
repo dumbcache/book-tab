@@ -1,14 +1,15 @@
 <script>
     import { onMount } from "svelte";
+    import googleIcon from "@assets/google.png";
     import bookIcon from "@assets/BookTab.svg?raw";
-    import closeIcon from "@assets/close.svg?raw";
     import historyIcon from "@assets/history.svg?raw";
     import TabGroup from "@components/tab/TabGroup.svelte";
     import ColorScheme from "@components/tab/ColorScheme.svelte";
     import History from "@components/tab/History.svelte";
+    import Sync from "@components/tab/Sync.svelte";
+    import Tools from "@components/tab/Tools.svelte";
 
     let tabGroups = $state([]);
-    let lastSync = $state("");
     let isLoggedIn = $state(false);
     let historyVisible = $state(false);
 
@@ -18,30 +19,23 @@
         });
     }
 
-    function handleCreate() {
-        chrome.runtime.sendMessage({ context: "CREATE" });
-    }
-
     async function set() {
-        let { groups, lastSynced, user } = await chrome.storage.local.get();
+        let {
+            groups,
+            lastSynced: ls,
+            session: s,
+            user,
+        } = await chrome.storage.local.get();
         tabGroups = groups ?? [];
         user ? (isLoggedIn = true) : (isLoggedIn = false);
-        if (lastSynced) {
-            lastSync =
-                new Date(lastSynced).toDateString() +
-                " " +
-                new Date(lastSynced).toLocaleTimeString();
-        }
     }
 
-    chrome.runtime.onMessage.addListener(
-        async (message, sender, sendResponse) => {
-            let { context } = message;
-            if (context === "CHANGE") {
-                set();
-            }
+    chrome.runtime.onMessage.addListener(async (message) => {
+        let { context } = message;
+        if (context === "CHANGE") {
+            set();
         }
-    );
+    });
 
     onMount(async () => {
         set();
@@ -51,22 +45,28 @@
 <header>
     <div class="one">
         <button
-            onclick={() => chrome.runtime.sendMessage({ context: "DISPLAY" })}
-            class="icon">{@html bookIcon}</button
+            onclick={() =>
+                chrome.runtime.sendMessage({
+                    context: "CONTEXTMENU",
+                    action: "display",
+                })}
+            class="logo">{@html bookIcon}</button
         >
 
         <h1>BookTab</h1>
-        {#if isLoggedIn && lastSync}
-            <p>{`Last synced: ${lastSync}`}</p>
-        {/if}
     </div>
-    <div class="two">
-        <button class="create" title="create" onclick={handleCreate}>
-            {@html closeIcon}
-        </button>
+    {#if isLoggedIn}
+        <div class="two">
+            <Sync />
+        </div>
+    {/if}
+    <div class="three">
+        <Tools />
+    </div>
+    <div class="four">
         <button
-            class="create"
-            title="create"
+            class="icon history"
+            title="history"
             onclick={() => {
                 historyVisible = !historyVisible;
             }}
@@ -75,7 +75,15 @@
         </button>
         <ColorScheme />
         <button class="sign" onclick={handleLogin}>
-            {isLoggedIn ? "Logout" : "Login"}
+            {#if isLoggedIn}
+                <span>Logout</span>
+            {:else}
+                <img
+                    src={googleIcon}
+                    class="google-icon"
+                    alt="Signin to Google"
+                />
+            {/if}
         </button>
     </div>
 </header>
@@ -94,22 +102,14 @@
         position: sticky;
         top: 0rem;
         display: flex;
+        gap: 1rem;
         align-items: center;
         justify-content: space-between;
-        padding: 2rem 1rem;
+        padding: 2rem;
         border-bottom: 1px solid var(--color-focus);
         background-color: var(--color-bg);
     }
 
-    .create {
-        block-size: var(--primary-icon-size);
-        inline-size: var(--primary-icon-size);
-        rotate: 45deg;
-
-        &:hover :global(svg) {
-            fill: var(--color-focus);
-        }
-    }
     .one {
         position: relative;
         display: flex;
@@ -123,11 +123,13 @@
         }
     }
 
-    .two {
+    .four {
+        /* order: 3; */
         display: flex;
         align-items: center;
         gap: 3rem;
     }
+
     .sign {
         font-size: 1.6rem;
 
@@ -139,7 +141,7 @@
         font-size: 3rem;
         font-family: var(--font-default);
     }
-    .icon {
+    .logo {
         width: 3rem;
         height: 3rem;
         padding-bottom: 0.1rem;
@@ -148,11 +150,38 @@
             height: 100%;
         }
     }
+
+    .sign {
+        display: flex;
+        .google-icon {
+            width: 3rem;
+            height: 3rem;
+        }
+    }
     main {
         padding: 1rem;
     }
 
     @media (max-width: 600px) {
+        header {
+            padding: 2rem 1rem 1rem;
+            flex-wrap: wrap;
+            .one {
+                order: 1;
+            }
+            .two {
+                order: 3;
+                width: 100%;
+            }
+            .three {
+                order: 4;
+                width: 100%;
+            }
+            .four {
+                order: 2;
+                gap: 1.5rem;
+            }
+        }
         h1 {
             font-size: 2.5rem;
         }
@@ -160,11 +189,8 @@
         .sign {
             font-size: 1.3rem;
         }
-        .two {
-            gap: 1.5rem;
-        }
 
-        .icon {
+        .logo {
             width: 2.5rem;
             height: 2.5rem;
         }

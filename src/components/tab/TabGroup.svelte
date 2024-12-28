@@ -47,7 +47,7 @@
 <section class="group" out:fade={{ duration: 200 }} id={group.id}>
     <div class="header">
         <div class="heading">
-            <h4 class="gname ellipsis">
+            <h4 title={group.name} class="gname ellipsis">
                 {group.name}
             </h4>
             <sub>{`(${new Date(group.createdDate).toLocaleString()})`}</sub>
